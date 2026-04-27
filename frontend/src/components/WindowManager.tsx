@@ -16,11 +16,15 @@ export default function WindowManager() {
     if (windows.length === 0) {
         return (
             <div className="w-full h-full flex items-center justify-center pointer-events-none">
-                <div className="text-[#fabd2f]/10 flex flex-col items-center">
-                    <div className="w-32 h-32 border border-current rounded-full flex items-center justify-center mb-4">
-                        <span className="text-4xl">K</span>
-                    </div>
-                    <span className="text-sm font-bold tracking-[0.5em] uppercase">KnightKernel Desktop</span>
+                <div className="text-center flex flex-col items-center gap-4">
+                  <div className="w-24 h-24 border border-[#00f5ff]/20 rounded-full flex items-center justify-center"
+                    style={{ boxShadow: '0 0 40px rgba(0,245,255,0.05)' }}>
+                    <span className="text-4xl font-black neon-text-cyan" style={{ color: '#00f5ff' }}>K</span>
+                  </div>
+                  <div>
+                    <div className="text-[#00f5ff]/20 text-xs font-black tracking-[0.5em] uppercase">KnightKernel OS</div>
+                    <div className="text-[#bf00ff]/15 text-[10px] mt-1 tracking-widest">Click an app in the dock to begin</div>
+                  </div>
                 </div>
             </div>
         );

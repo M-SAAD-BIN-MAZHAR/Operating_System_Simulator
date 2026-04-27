@@ -39,15 +39,35 @@ export const useWindowStore = create<WindowState>((set, get) => ({
     openWindow: (type, title) => {
         const id = `${type}-${Math.random().toString(36).substring(2, 9)}`;
         const zIndex = get().nextZIndex;
-        
+
+        // Responsive default sizes based on viewport
+        const vw = globalThis.window?.innerWidth  ?? 1280;
+        const vh = globalThis.window?.innerHeight ?? 800;
+
+        const STATUSBAR = 32;
+        const DOCK      = 64;
+        const usableH   = vh - STATUSBAR - DOCK;
+        const usableW   = vw;
+
+        // Default sizes — never exceed 95% of usable area
+        const defaultW = Math.min(type === 'terminal' ? 700 : 820, Math.floor(usableW * 0.92));
+        const defaultH = Math.min(type === 'terminal' ? 460 : 520, Math.floor(usableH * 0.90));
+
+        // Cascade offset, but clamp so window stays fully on screen
+        const offset   = (get().windows.length % 6) * 24;
+        const maxX     = Math.max(0, usableW - defaultW);
+        const maxY     = Math.max(0, usableH - defaultH);
+        const spawnX   = Math.min(offset + 40, maxX);
+        const spawnY   = Math.min(offset + 40, maxY);
+
         const newWindow: WindowInstance = {
             id,
             type,
             title,
-            x: 50 + (get().windows.length * 20),
-            y: 50 + (get().windows.length * 20),
-            width: type === 'terminal' ? 700 : 800,
-            height: type === 'terminal' ? 450 : 500,
+            x: spawnX,
+            y: STATUSBAR + spawnY,
+            width:  defaultW,
+            height: defaultH,
             isFocused: true,
             isMaximized: false,
             zIndex

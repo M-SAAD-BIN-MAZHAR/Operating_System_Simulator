@@ -5,7 +5,7 @@ import 'xterm/css/xterm.css';
 import { useKernelStore } from '../store/kernelStore';
 import { dispatchCommand } from '../commands';
 
-const PROMPT = '\x1b[33mroot@knightkernel:~$\x1b[0m ';
+const PROMPT = '\x1b[38;2;0;245;255mroot@knightkernel\x1b[0m\x1b[38;2;191;0;255m:~$\x1b[0m ';
 
 /**
  * Terminal Component
@@ -28,13 +28,29 @@ export default function Terminal() {
         // Initialize xterm
         const term = new XTerm({
             theme: {
-                background: '#1d2021',
-                foreground: '#fabd2f',
-                cursor: '#fabd2f',
-                selectionBackground: '#fabd2f'
+                background: '#03000f',
+                foreground: '#e0d0ff',
+                cursor: '#00f5ff',
+                selectionBackground: '#bf00ff44',
+                black: '#03000f',
+                brightBlack: '#3a2060',
+                red: '#ff2d78',
+                brightRed: '#ff2d78',
+                green: '#00ff9f',
+                brightGreen: '#00ff9f',
+                yellow: '#ffe600',
+                brightYellow: '#ffe600',
+                blue: '#00f5ff',
+                brightBlue: '#00f5ff',
+                magenta: '#bf00ff',
+                brightMagenta: '#bf00ff',
+                cyan: '#00f5ff',
+                brightCyan: '#00f5ff',
+                white: '#e0d0ff',
+                brightWhite: '#ffffff',
             },
             fontFamily: '"JetBrains Mono", monospace',
-            fontSize: 14,
+            fontSize: 13,
             cursorBlink: true,
             scrollback: 1000,
             rows: 30
@@ -136,14 +152,12 @@ export default function Terminal() {
     }, [isConnected, sendCommand]);
 
     return (
-        <div className="flex-1 bg-[#1d2021] relative overflow-hidden flex flex-col pt-8"> {/* pt-8 for status bar offset */}
-            <div 
-                ref={containerRef} 
-                className="flex-1 p-4" 
-                style={{ height: 'calc(100vh - 32px)' }} 
-            />
-            
-            <div className="pointer-events-none fixed inset-0 z-[9999] bg-[repeating-linear-gradient(0deg,transparent,transparent_2px,rgba(0,0,0,0.05)_2px,rgba(0,0,0,0.05)_4px)]" />
+        <div className="flex-1 relative overflow-hidden flex flex-col pt-8"
+          style={{ background: '#03000f' }}>
+            <div ref={containerRef} className="flex-1 p-3"
+              style={{ height: 'calc(100vh - 32px)' }} />
+            <div className="pointer-events-none fixed inset-0 z-[9999]"
+              style={{ background: 'repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.04) 2px,rgba(0,0,0,0.04) 4px)' }} />
         </div>
     );
 }

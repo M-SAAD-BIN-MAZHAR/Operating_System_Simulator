@@ -1,263 +1,183 @@
 import React, { useState } from 'react';
 import { useKernelStore } from '../store/kernelStore';
+import ProcessStateDiagram from './ProcessStateDiagram';
+
+const STATE_COLORS: Record<string, string> = {
+  RUNNING:    '#00ff9f',
+  READY:      '#00f5ff',
+  WAITING:    '#bf00ff',
+  NEW:        '#ffe600',
+  TERMINATED: '#ff2d78',
+};
 
 export const ProcessManager: React.FC = () => {
-    const { processes, sendCommand, isConnected } = useKernelStore();
-    const [isSpawnOpen, setIsSpawnOpen] = useState(false);
-    const [isCustomOpen, setIsCustomOpen] = useState(false);
-    const [name, setName] = useState('');
-    const [burst, setBurst] = useState('5');
-    const [priority, setPriority] = useState('5');
+  const { processes, sendCommand, isConnected } = useKernelStore();
+  const [tab, setTab] = useState<'table' | 'diagram'>('diagram');
+  const [showSpawn, setShowSpawn] = useState(false);
+  const [name, setName] = useState('');
+  const [burst, setBurst] = useState('5');
+  const [priority, setPriority] = useState('5');
 
-    const [customParams, setCustomParams] = useState({
-        count: 10,
-        min_burst: 1,
-        max_burst: 25,
-        min_pri: 1,
-        max_pri: 10,
-        min_arr: 0,
-        max_arr: 15
-    });
+  const handleSpawn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name) return;
+    await sendCommand({ cmd: 'spawn', name, burst: parseInt(burst), priority: parseInt(priority), arrival: 0 });
+    setShowSpawn(false); setName(''); setBurst('5'); setPriority('5');
+    await sendCommand({ cmd: 'ps' });
+  };
 
-    const handleSpawn = async (e: React.FormEvent | React.MouseEvent) => {
-        e.preventDefault();
-        if (!name) return;
-        await sendCommand({
-            cmd: 'spawn',
-            name,
-            burst: parseInt(burst, 10),
-            priority: parseInt(priority, 10),
-            arrival: 0
-        });
-        setIsSpawnOpen(false);
-        setName('');
-        setBurst('5');
-        setPriority('5');
-        await sendCommand({ cmd: 'ps' });
-    };
+  const handleKill = async (pid: number) => {
+    await sendCommand({ cmd: 'kill', pid });
+    await sendCommand({ cmd: 'ps' });
+  };
 
-    const handleKill = async (pid: number) => {
-        await sendCommand({ cmd: 'kill', pid });
-        await sendCommand({ cmd: 'ps' });
-    };
+  const handleWorkload = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const type = e.target.value;
+    if (!type) return;
+    await sendCommand({ cmd: 'workload', type });
+    await sendCommand({ cmd: 'ps' });
+    e.target.value = '';
+  };
 
-    const handleWorkload = async (e: React.ChangeEvent<HTMLSelectElement>) => {
-        const type = e.target.value;
-        if (type === 'custom') {
-            setIsCustomOpen(true);
-            setIsSpawnOpen(false);
-        } else if (type) {
-            await sendCommand({ cmd: 'workload', type });
-            await sendCommand({ cmd: 'ps' });
-            setIsCustomOpen(false);
-            setIsSpawnOpen(false);
-        }
-    };
+  return (
+    <div className="flex flex-col h-full font-mono text-sm overflow-hidden"
+      style={{ background: 'var(--bg-dark)', color: 'var(--text-primary)' }}>
 
-    const handleCustomSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        await sendCommand({ 
-            cmd: 'workload', 
-            type: 'custom',
-            ...customParams 
-        });
-        await sendCommand({ cmd: 'ps' });
-        setIsCustomOpen(false);
-    };
+      {/* Toolbar */}
+      <div className="flex items-center gap-3 px-4 py-2 border-b shrink-0"
+        style={{ borderColor: 'rgba(0,245,255,0.15)', background: 'rgba(0,0,0,0.4)' }}>
 
-    const handleRefresh = async () => {
-        await sendCommand({ cmd: 'ps' });
-    };
-
-    const getStateColor = (state: string) => {
-        switch (state) {
-            case 'RUNNING': return '#00ff41'; // green
-            case 'READY': return '#fabd2f'; // amber
-            case 'TERMINATED': return '#ff3c3c'; // red
-            default: return '#555555'; // dim for WAITING / NEW
-        }
-    };
-
-    return (
-        <div className="flex flex-col h-full w-full bg-[#1d2021] text-[#fabd2f] font-mono text-sm overflow-hidden">
-            {/* Toolbar */}
-            <div className="flex flex-wrap items-center gap-4 p-2 border-b border-[#fabd2f] shrink-0 bg-[#111]">
-                <button
-                    onClick={() => setIsSpawnOpen(!isSpawnOpen)}
-                    disabled={!isConnected}
-                    className="px-3 py-1 border border-[#fabd2f] hover:bg-[#fabd2f] hover:text-[#1d2021] disabled:opacity-50 transition-colors"
-                >
-                    [SPAWN]
-                </button>
-
-                <select
-                    onChange={handleWorkload}
-                    disabled={!isConnected}
-                    className="px-3 py-1 border border-[#fabd2f] bg-transparent hover:bg-[#111] disabled:opacity-50 outline-none cursor-pointer appearance-none"
-                    style={{ WebkitAppearance: 'none', MozAppearance: 'none' }}
-                >
-                    <option className="bg-[#1d2021]" value="">[WORKLOAD ▼]</option>
-                    <option className="bg-[#1d2021]" value="cpu_bound">cpu_bound</option>
-                    <option className="bg-[#1d2021]" value="io_bound">io_bound</option>
-                    <option className="bg-[#1d2021]" value="mixed">mixed</option>
-                    <option className="bg-[#1d2021]" value="custom">[custom...]</option>
-                </select>
-
-                <button
-                    onClick={handleRefresh}
-                    disabled={!isConnected}
-                    className="px-3 py-1 border border-[#fabd2f] hover:bg-[#fabd2f] hover:text-[#1d2021] disabled:opacity-50 transition-colors"
-                >
-                    [REFRESH]
-                </button>
-            </div>
-
-            {/* Spawn Form */}
-            {isSpawnOpen && (
-                <form onSubmit={handleSpawn} className="flex flex-wrap items-end gap-3 p-3 border-b border-[#333] shrink-0 bg-[#0f0f0f]">
-                    <div className="flex flex-col">
-                        <label className="text-xs text-[#888] mb-1">Name:</label>
-                        <input
-                            type="text"
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            className="bg-[#1d2021] border border-[#555] px-2 py-1 outline-none focus:border-[#fabd2f] text-[#fabd2f] w-32"
-                            placeholder="proc_name"
-                            required
-                        />
-                    </div>
-                    <div className="flex flex-col">
-                        <label className="text-xs text-[#888] mb-1">Burst:</label>
-                        <input
-                            type="number"
-                            value={burst}
-                            onChange={(e) => setBurst(e.target.value)}
-                            min="1"
-                            className="bg-[#1d2021] border border-[#555] px-2 py-1 outline-none focus:border-[#fabd2f] text-[#fabd2f] w-20"
-                            required
-                        />
-                    </div>
-                    <div className="flex flex-col">
-                        <label className="text-xs text-[#888] mb-1">Priority:</label>
-                        <input
-                            type="number"
-                            value={priority}
-                            onChange={(e) => setPriority(e.target.value)}
-                            min="1"
-                            max="10"
-                            className="bg-[#1d2021] border border-[#555] px-2 py-1 outline-none focus:border-[#fabd2f] text-[#fabd2f] w-20"
-                            required
-                        />
-                    </div>
-                    <button type="button" onClick={handleSpawn} className="px-3 py-1 bg-[#fabd2f] text-[#1d2021] font-bold hover:bg-[#ffca40]">
-                        Submit
-                    </button>
-                </form>
-            )}
-
-            {/* Custom Workload Form */}
-            {isCustomOpen && (
-                <form onSubmit={handleCustomSubmit} className="grid grid-cols-4 gap-x-4 gap-y-2 p-3 border-b border-[#333] shrink-0 bg-[#0f0f0f]">
-                    <div className="flex flex-col">
-                        <label className="text-[10px] text-[#888] uppercase">Count:</label>
-                        <input type="number" value={customParams.count} 
-                            onChange={e=>setCustomParams({...customParams, count: parseInt(e.target.value)})}
-                            className="bg-[#1d2021] border border-[#555] px-2 py-1 outline-none focus:border-[#fabd2f] text-[#fabd2f]" min="1" max="50" />
-                    </div>
-                    <div className="flex flex-col">
-                        <label className="text-[10px] text-[#888] uppercase">Burst Range:</label>
-                        <div className="flex items-center gap-1">
-                            <input type="number" value={customParams.min_burst} 
-                                onChange={e=>setCustomParams({...customParams, min_burst: parseInt(e.target.value)})}
-                                className="bg-[#1d2021] border border-[#555] px-1 py-1 outline-none w-1/2" min="1" />
-                            <span>-</span>
-                            <input type="number" value={customParams.max_burst} 
-                                onChange={e=>setCustomParams({...customParams, max_burst: parseInt(e.target.value)})}
-                                className="bg-[#1d2021] border border-[#555] px-1 py-1 outline-none w-1/2" min="1" />
-                        </div>
-                    </div>
-                    <div className="flex flex-col">
-                        <label className="text-[10px] text-[#888] uppercase">Priority Range:</label>
-                        <div className="flex items-center gap-1">
-                            <input type="number" value={customParams.min_pri} 
-                                onChange={e=>setCustomParams({...customParams, min_pri: parseInt(e.target.value)})}
-                                className="bg-[#1d2021] border border-[#555] px-1 py-1 outline-none w-1/2" min="1" />
-                            <span>-</span>
-                            <input type="number" value={customParams.max_pri} 
-                                onChange={e=>setCustomParams({...customParams, max_pri: parseInt(e.target.value)})}
-                                className="bg-[#1d2021] border border-[#555] px-1 py-1 outline-none w-1/2" min="10" />
-                        </div>
-                    </div>
-                    <div className="flex flex-col">
-                        <label className="text-[10px] text-[#888] uppercase">Arrival Range:</label>
-                        <div className="flex items-center gap-1">
-                            <input type="number" value={customParams.min_arr} 
-                                onChange={e=>setCustomParams({...customParams, min_arr: parseInt(e.target.value)})}
-                                className="bg-[#1d2021] border border-[#555] px-1 py-1 outline-none w-1/2" min="0" />
-                            <span>-</span>
-                            <input type="number" value={customParams.max_arr} 
-                                onChange={e=>setCustomParams({...customParams, max_arr: parseInt(e.target.value)})}
-                                className="bg-[#1d2021] border border-[#555] px-1 py-1 outline-none w-1/2" min="0" />
-                        </div>
-                    </div>
-                    <div className="col-span-4 flex justify-end gap-2 mt-1">
-                        <button type="button" onClick={()=>setIsCustomOpen(false)} className="px-3 py-0.5 border border-[#555] text-[#888] hover:text-white">Cancel</button>
-                        <button type="submit" className="px-6 py-0.5 bg-[#fabd2f] text-black font-bold hover:bg-[#ffca40]">GENERATE WORKLOAD</button>
-                    </div>
-                </form>
-            )}
-            <div className="flex-1 overflow-auto">
-                {processes.length === 0 ? (
-                    <div className="h-full flex items-center justify-center text-[#555]">
-                        <p>No processes. Click SPAWN or load a WORKLOAD.</p>
-                    </div>
-                ) : (
-                    <table className="w-full text-left border-collapse">
-                        <thead className="sticky top-0 bg-[#1d2021] border-b border-[#fabd2f] uppercase">
-                            <tr>
-                                <th className="p-2 w-12 font-normal">PID</th>
-                                <th className="p-2 font-normal">Name</th>
-                                <th className="p-2 w-28 font-normal">State</th>
-                                <th className="p-2 w-20 font-normal">Pri</th>
-                                <th className="p-2 w-20 font-normal">Burst</th>
-                                <th className="p-2 w-20 font-normal">Rem</th>
-                                <th className="p-2 w-20 font-normal">Wait</th>
-                                <th className="p-2 w-20 font-normal">TAT</th>
-                                <th className="p-2 w-20 font-normal text-center">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {processes.map((proc) => (
-                                <tr key={proc.pid} className="border-b border-[#222] hover:bg-[#111] transition-colors">
-                                    <td className="p-2 text-[#555]">{proc.pid.toString().padStart(3, '0')}</td>
-                                    <td className="p-2">{proc.name}</td>
-                                    <td className="p-2 flex items-center gap-2">
-                                        <span
-                                            className="w-2 h-2 rounded-full inline-block"
-                                            style={{ backgroundColor: getStateColor(proc.state) }}
-                                        ></span>
-                                        {proc.state}
-                                    </td>
-                                    <td className="p-2">{proc.priority}</td>
-                                    <td className="p-2">{proc.burst_time}</td>
-                                    <td className="p-2">{proc.remaining_time}</td>
-                                    <td className="p-2">{proc.waiting_time}</td>
-                                    <td className="p-2">{proc.turnaround_time}</td>
-                                    <td className="p-2 text-center">
-                                        <button
-                                            onClick={() => handleKill(proc.pid)}
-                                            className="text-[#ff3c3c] hover:underline"
-                                            disabled={!isConnected || proc.state === 'TERMINATED'}
-                                        >
-                                            [KILL]
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                )}
-            </div>
+        {/* Tabs */}
+        <div className="flex gap-1 mr-2">
+          {(['diagram', 'table'] as const).map(t => (
+            <button key={t} onClick={() => setTab(t)}
+              className="px-3 py-1 text-[10px] font-black uppercase transition-all"
+              style={{
+                background: tab === t ? '#00f5ff' : 'transparent',
+                color: tab === t ? '#03000f' : 'rgba(0,245,255,0.4)',
+                border: `1px solid ${tab === t ? '#00f5ff' : 'rgba(0,245,255,0.2)'}`,
+              }}>
+              {t}
+            </button>
+          ))}
         </div>
-    );
+
+        <div className="h-4 w-px bg-white/10" />
+
+        <button onClick={() => setShowSpawn(!showSpawn)} disabled={!isConnected}
+          className="px-3 py-1 text-[10px] font-black uppercase transition-all btn-neon-cyan disabled:opacity-30">
+          + SPAWN
+        </button>
+
+        <select onChange={handleWorkload} disabled={!isConnected}
+          className="px-3 py-1 text-[10px] font-black uppercase bg-transparent border border-[#bf00ff]/40
+            text-[#bf00ff] outline-none cursor-pointer disabled:opacity-30 hover:border-[#bf00ff]">
+          <option value="">WORKLOAD ▼</option>
+          <option value="cpu_bound">cpu_bound</option>
+          <option value="io_bound">io_bound</option>
+          <option value="mixed">mixed</option>
+        </select>
+
+        <button onClick={() => sendCommand({ cmd: 'ps' })} disabled={!isConnected}
+          className="ml-auto px-3 py-1 text-[10px] font-black uppercase transition-all
+            border border-white/10 text-white/30 hover:border-white/30 hover:text-white/60 disabled:opacity-30">
+          ↻ REFRESH
+        </button>
+
+        <span className="text-[10px] text-white/30">{processes.length} procs</span>
+      </div>
+
+      {/* Spawn form */}
+      {showSpawn && (
+        <form onSubmit={handleSpawn} className="flex items-end gap-3 px-4 py-3 border-b shrink-0"
+          style={{ borderColor: 'rgba(0,245,255,0.1)', background: 'rgba(0,245,255,0.03)' }}>
+          {[
+            { label: 'Name', val: name, set: setName, type: 'text', ph: 'proc_name', w: 'w-32' },
+            { label: 'Burst', val: burst, set: setBurst, type: 'number', ph: '5', w: 'w-20' },
+            { label: 'Priority', val: priority, set: setPriority, type: 'number', ph: '5', w: 'w-20' },
+          ].map(f => (
+            <div key={f.label} className="flex flex-col gap-1">
+              <label className="text-[9px] text-[#00f5ff]/40 uppercase">{f.label}</label>
+              <input type={f.type} value={f.val} onChange={e => f.set(e.target.value)}
+                placeholder={f.ph} required={f.label === 'Name'}
+                className={`${f.w} neon-input px-2 py-1 text-xs`} />
+            </div>
+          ))}
+          <button type="submit"
+            className="px-4 py-1 font-black text-[10px] uppercase bg-[#00f5ff] text-[#03000f]
+              hover:shadow-[0_0_12px_rgba(0,245,255,0.5)] transition-all">
+            SPAWN
+          </button>
+          <button type="button" onClick={() => setShowSpawn(false)}
+            className="px-3 py-1 text-[10px] border border-white/10 text-white/30 hover:text-white/60">
+            CANCEL
+          </button>
+        </form>
+      )}
+
+      {/* Content */}
+      <div className="flex-1 overflow-hidden">
+        {tab === 'diagram' ? (
+          <ProcessStateDiagram />
+        ) : (
+          <div className="h-full overflow-auto">
+            {processes.length === 0 ? (
+              <div className="h-full flex items-center justify-center text-white/20 text-xs uppercase tracking-widest">
+                No processes — spawn or load a workload
+              </div>
+            ) : (
+              <div className="overflow-x-auto min-w-full">
+                <table className="w-full text-left border-collapse text-[11px] min-w-[600px]">
+                <thead className="sticky top-0" style={{ background: 'var(--bg-dark)' }}>
+                  <tr className="border-b" style={{ borderColor: 'rgba(0,245,255,0.2)' }}>
+                    {['PID','Name','State','Pri','Burst','Rem','Wait','TAT',''].map(h => (
+                      <th key={h} className="px-3 py-2 font-black uppercase text-[9px] tracking-widest"
+                        style={{ color: 'rgba(0,245,255,0.5)' }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {processes.map(p => {
+                    const color = STATE_COLORS[p.state] || '#ffffff';
+                    return (
+                      <tr key={p.pid} className="border-b transition-colors"
+                        style={{ borderColor: 'rgba(255,255,255,0.04)' }}
+                        onMouseEnter={e => (e.currentTarget.style.background = 'rgba(0,245,255,0.03)')}
+                        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                        <td className="px-3 py-2 text-white/30">{String(p.pid).padStart(3,'0')}</td>
+                        <td className="px-3 py-2 text-white/70">{p.name}</td>
+                        <td className="px-3 py-2">
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-1.5 h-1.5 rounded-full"
+                              style={{ background: color, boxShadow: `0 0 4px ${color}` }} />
+                            <span className="font-bold" style={{ color }}>{p.state}</span>
+                          </div>
+                        </td>
+                        <td className="px-3 py-2 text-white/50">{p.priority}</td>
+                        <td className="px-3 py-2 text-white/50">{p.burst_time}</td>
+                        <td className="px-3 py-2 text-white/50">{p.remaining_time}</td>
+                        <td className="px-3 py-2 text-white/50">{p.waiting_time}</td>
+                        <td className="px-3 py-2 text-white/50">{p.turnaround_time}</td>
+                        <td className="px-3 py-2">
+                          <button onClick={() => handleKill(p.pid)}
+                            disabled={!isConnected || p.state === 'TERMINATED'}
+                            className="text-[10px] font-black uppercase transition-all disabled:opacity-20"
+                            style={{ color: '#ff2d78' }}
+                            onMouseEnter={e => (e.currentTarget.style.textShadow = '0 0 8px #ff2d78')}
+                            onMouseLeave={e => (e.currentTarget.style.textShadow = 'none')}>
+                            KILL
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
 };

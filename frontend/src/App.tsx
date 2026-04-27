@@ -33,31 +33,41 @@ function App() {
 
   // Once booted, show the Desktop Interface
   return (
-    <div className="relative w-screen h-screen bg-[#1d2021] overflow-hidden select-none">
+    <div className="relative w-screen h-screen overflow-hidden select-none cyber-grid"
+      style={{ background: 'var(--bg-deep)' }}>
 
-      {/* 1. TOP: Persistent Status Bar */}
+      {/* Cyberpunk background wallpaper with overlay */}
+      <div className="absolute inset-0 bg-cover bg-center opacity-20"
+        style={{ backgroundImage: `url(${wallpaperUrl})` }} />
+
+      {/* Deep purple/cyan gradient overlay */}
+      <div className="absolute inset-0"
+        style={{ background: 'radial-gradient(ellipse at 20% 50%, rgba(191,0,255,0.08) 0%, transparent 60%), radial-gradient(ellipse at 80% 20%, rgba(0,245,255,0.06) 0%, transparent 60%)' }} />
+
+      {/* 1. TOP: Status Bar */}
       <StatusBar />
 
-      {/* 2. CENTER: Desktop Workspace / Window Manager */}
-      <main
-        className="absolute inset-0 pt-8 pb-16 overflow-hidden bg-cover bg-center"
-        style={{ backgroundImage: `url(${wallpaperUrl})` }}
-      >
+      {/* 2. CENTER: Desktop Workspace */}
+      <main className="absolute inset-0 pt-8 pb-16 overflow-hidden">
         <WindowManager />
       </main>
 
-      {/* 3. BOTTOM: Application Dock */}
+      {/* 3. BOTTOM: Dock */}
       <Dock />
 
-      {/* 4. OVERLAYS: Global CRT Effects */}
-      {/* Scanline texture */}
-      <div className="pointer-events-none fixed inset-0 z-[100001] bg-[repeating-linear-gradient(0deg,transparent,transparent_2px,rgba(0,0,0,0.05)_2px,rgba(0,0,0,0.05)_4px)]" />
+      {/* 4. CRT scanline overlay */}
+      <div className="pointer-events-none fixed inset-0 z-[100001]"
+        style={{ background: 'repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.04) 2px,rgba(0,0,0,0.04) 4px)' }} />
 
-      {/* Screen noise / grain */}
-      <div className="pointer-events-none fixed inset-0 opacity-[0.03] z-[100002] bg-[url('https://grainy-gradients.vercel.app/noise.svg')] mix-blend-overlay" />
+      {/* 5. Vignette */}
+      <div className="pointer-events-none fixed inset-0 z-[100002]"
+        style={{ boxShadow: 'inset 0 0 200px rgba(0,0,0,0.7)' }} />
 
-      {/* Screen vignette */}
-      <div className="pointer-events-none fixed inset-0 z-[100003] shadow-[inset_0_0_150px_rgba(0,0,0,0.5)]" />
+      {/* 6. Corner accent lines */}
+      <div className="pointer-events-none fixed top-8 left-0 w-32 h-px z-[100003]"
+        style={{ background: 'linear-gradient(90deg, #00f5ff, transparent)' }} />
+      <div className="pointer-events-none fixed top-8 right-0 w-32 h-px z-[100003]"
+        style={{ background: 'linear-gradient(270deg, #bf00ff, transparent)' }} />
     </div>
   );
 }
